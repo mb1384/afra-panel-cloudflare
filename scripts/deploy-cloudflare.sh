@@ -49,8 +49,6 @@ cf() { # cf METHOD PATH [BODY]
   fi
 }
 
-json() { python3 -c "import sys,json;print(eval('d'+'$1',{'d':json.load(sys.stdin)}))" 2>/dev/null || true; }
-
 # ------------------------------------------------------------
 # ۰) بررسی پیش‌نیازها
 # ------------------------------------------------------------
@@ -137,7 +135,30 @@ for app in ("control-plane", "edge"):
 PY
 
 # ------------------------------------------------------------
-# ۳) کلید رمزنگاری اسرار
+# ۳) مهاجرت‌های دیتابیس
+# ------------------------------------------------------------
+log "اعمال مهاجرت‌های D1 روی ${D1_NAME}"
+cd "${ROOT}/apps/control-plane"
+npx wrangler d1 migrations apply "$D1_NAME" -c wrangler.local.jsonc --env "$ENVIRONMENT" --remote
+
+# ------------------------------------------------------------
+# ۴) ساخت رابط کاربری
+# ------------------------------------------------------------
+log "ساخت رابط کاربری"
+cd "$ROOT"
+npm run build
+
+# ------------------------------------------------------------
+# ۵) استقرار Control Plane
+# ------------------------------------------------------------
+log "استقرار Control Plane"
+cd "${ROOT}/apps/control-plane"
+CP_OUT="$(npx wrangler deploy -c wrangler.local.jsonc --env "$ENVIRONMENT" 2>&1)"
+echo "$CP_OUT" | grep -viE "telemetry" || true
+CP_URL="$(echo "$CP_OUT" | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1)"
+
+# ------------------------------------------------------------
+# ۶) کلید رمزنگاری اسرار (پس از ساخت Worker)
 # ------------------------------------------------------------
 log "بررسی کلید AFRA_SECRET_KEY"
 cd "${ROOT}/apps/control-plane"
@@ -156,28 +177,6 @@ else
   fi
   printf '%s' "$GENERATED_KEY" | npx wrangler secret put AFRA_SECRET_KEY -c wrangler.local.jsonc --env "$ENVIRONMENT"
 fi
-
-# ------------------------------------------------------------
-# ۴) مهاجرت‌های دیتابیس
-# ------------------------------------------------------------
-log "اعمال مهاجرت‌های D1 روی ${D1_NAME}"
-npx wrangler d1 migrations apply "$D1_NAME" -c wrangler.local.jsonc --env "$ENVIRONMENT" --remote
-
-# ------------------------------------------------------------
-# ۵) ساخت رابط کاربری
-# ------------------------------------------------------------
-log "ساخت رابط کاربری"
-cd "$ROOT"
-npm run build
-
-# ------------------------------------------------------------
-# ۶) استقرار Workerها
-# ------------------------------------------------------------
-log "استقرار Control Plane"
-cd "${ROOT}/apps/control-plane"
-CP_OUT="$(npx wrangler deploy -c wrangler.local.jsonc --env "$ENVIRONMENT" 2>&1)"
-echo "$CP_OUT" | grep -viE "telemetry" || true
-CP_URL="$(echo "$CP_OUT" | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1)"
 
 log "استقرار Edge Worker"
 cd "${ROOT}/apps/edge"

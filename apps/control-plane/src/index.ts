@@ -1,6 +1,7 @@
 import { AfraError } from '@afra/shared';
 import { Hono } from 'hono';
 import type { AppEnv } from './core/context.js';
+import { applySecurityHeaders } from './core/headers.js';
 import type { Bindings } from './core/env.js';
 import { newId } from './core/ids.js';
 import { Logger } from './core/logger.js';
@@ -32,26 +33,6 @@ import { usersRouter } from './modules/users/users.routes.js';
 export { RateLimiterDO } from './durable/rate-limiter.js';
 export { HealthCoordinatorDO } from './durable/health-coordinator.js';
 
-const SECURITY_HEADERS: Record<string, string> = {
-  'x-content-type-options': 'nosniff',
-  'x-frame-options': 'DENY',
-  'referrer-policy': 'strict-origin-when-cross-origin',
-  'permissions-policy': 'geolocation=(), microphone=(), camera=()',
-  'cross-origin-opener-policy': 'same-origin',
-};
-
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ');
-
 const app = new Hono<AppEnv>();
 
 /* ---------------------------- میدل‌ویرهای پایه ---------------------------- */
@@ -71,10 +52,8 @@ app.use('*', async (c, next) => {
 
   await next();
 
-  c.header('x-request-id', requestId);
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) c.header(key, value);
-  const contentType = c.res.headers.get('content-type') ?? '';
-  if (contentType.includes('text/html')) c.header('content-security-policy', CSP);
+  // پاسخ بازسازی می‌شود تا هدرها روی پاسخ‌های immutable (مثل Static Assets) هم اعمال شوند
+  c.res = applySecurityHeaders(c.res, requestId);
 });
 
 /** CORS محدود: در حالت توسعه، فرانت‌اند Vite اجازهٔ دسترسی دارد. */

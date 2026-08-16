@@ -1,4 +1,5 @@
 import { SELF, env } from 'cloudflare:test';
+import { applySecurityHeaders } from '../src/core/headers.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   apiGet,
@@ -523,7 +524,38 @@ describe('سلامت سرویس و تحلیل‌ها', () => {
     const response = await SELF.fetch('https://afra.test/health');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('x-frame-options')).toBe('DENY');
+    expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
     expect(response.headers.get('x-request-id')).toBeTruthy();
+  });
+
+  it('هدرها روی پاسخ با هدرهای غیرقابل‌تغییر هم اعمال می‌شود', () => {
+    // پاسخ Static Assets در Workers هدرهای immutable دارد؛ بازسازی باید انجام شود.
+    const original = new Response('<!doctype html><html lang="fa"></html>', {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    });
+    Object.freeze(original.headers);
+
+    const secured = applySecurityHeaders(original, 'req_test');
+    expect(secured.status).toBe(200);
+    expect(secured.headers.get('x-frame-options')).toBe('DENY');
+    expect(secured.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(secured.headers.get('x-request-id')).toBe('req_test');
+    // CSP فقط برای HTML اعمال می‌شود
+    expect(secured.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+  });
+
+  it('CSP روی پاسخ JSON اعمال نمی‌شود و پاسخ ۱۰۱ دست‌نخورده می‌ماند', () => {
+    const json = applySecurityHeaders(
+      new Response('{}', { headers: { 'content-type': 'application/json' } }),
+    );
+    expect(json.headers.get('content-security-policy')).toBeNull();
+    expect(json.headers.get('x-frame-options')).toBe('DENY');
+
+    // ساخت پاسخ ۱۰۱ در محیط Workers فقط با webSocket مجاز است؛
+    // بنابراین فقط شرط محافظ تابع را می‌سنجیم.
+    const upgrade = { status: 101 } as unknown as Response;
+    expect(applySecurityHeaders(upgrade)).toBe(upgrade);
   });
 
   it('آمار داشبورد از دادهٔ واقعی محاسبه می‌شود', async () => {
