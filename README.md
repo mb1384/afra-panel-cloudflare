@@ -250,6 +250,21 @@ npm run build      # ساخت رابط کاربری در apps/control-plane/publ
 npm run deploy     # استقرار هر دو Worker
 ```
 
+### ۷.۱. استقرار خودکار (جایگزین گام‌های ۳ تا ۷)
+
+اگر توکن Cloudflare با مجوزهای لازم دارید، می‌توانید همهٔ مراحل بالا را با یک دستور انجام دهید:
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID=...
+export CLOUDFLARE_API_TOKEN=...
+bash scripts/deploy-cloudflare.sh production
+```
+
+این اسکریپت **idempotent** است: منابع (D1، KV، R2) را در صورت نبود می‌سازد، شناسه‌ها را در فایل
+`wrangler.local.jsonc` (خارج از Git) می‌نویسد، کلید رمزنگاری را تنظیم می‌کند، مهاجرت‌ها را اعمال
+می‌نماید، رابط کاربری را می‌سازد، هر دو Worker را مستقر می‌کند و در پایان `/health` و `/ready` را
+بررسی می‌نماید.
+
 ### ۸. راه‌اندازی اولیه
 
 آدرس Worker پنل را در مرورگر باز کنید. جادوگر هشت‌مرحله‌ای فارسی اجرا می‌شود:
