@@ -44,3 +44,6 @@ Thumbs.db
 *.sqlite3
 *.db
 backups/
+
+# کلید تولیدشده در فرایند استقرار
+AFRA_SECRET_KEY.txt
