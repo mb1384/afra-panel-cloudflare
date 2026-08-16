@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+apps/control-plane/public/
+
+# cloudflare / wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+wrangler.local.jsonc
+
+# secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# logs
+*.log
+npm-debug.log*
+logs/
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local database dumps
+*.sqlite
+*.sqlite3
+*.db
+backups/

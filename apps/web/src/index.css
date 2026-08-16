@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply font-sans;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* مقادیر فنی (UUID، IP، دامنه، URL) همیشه چپ‌به‌راست نمایش داده می‌شوند */
+  .ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: left;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-afra-500 ring-offset-2 ring-offset-white dark:ring-offset-ink-950;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300 dark:bg-ink-700;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-ink-200 bg-white shadow-card dark:border-ink-800 dark:bg-ink-900;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .table-wrapper {
+    @apply w-full overflow-x-auto;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-ink-200 dark:bg-ink-800;
+  }
+}

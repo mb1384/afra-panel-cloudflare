@@ -1,0 +1,55 @@
+{
+  // ============================================================
+  // Afra Panel — Edge Worker
+  // مسئولیت‌ها: تحویل اشتراک + endpoint پروکسی روی لبهٔ Cloudflare
+  // ============================================================
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "afra-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+
+  "vars": {
+    "AFRA_ENV": "development",
+    "AFRA_EDGE_PATH": "/afra"
+  },
+
+  // همان D1 و KV پنل — منبع حقیقت مشترک
+  "d1_databases": [
+    {
+      "binding": "AFRA_DB",
+      "database_name": "afra-db",
+      "database_id": "REPLACE_ME_D1_DEV"
+    }
+  ],
+  "kv_namespaces": [{ "binding": "AFRA_KV", "id": "REPLACE_ME_KV_DEV" }],
+
+  "env": {
+    "staging": {
+      "name": "afra-edge-staging",
+      "vars": { "AFRA_ENV": "staging", "AFRA_EDGE_PATH": "/afra" },
+      "d1_databases": [
+        {
+          "binding": "AFRA_DB",
+          "database_name": "afra-db-staging",
+          "database_id": "REPLACE_ME_D1_STAGING"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "AFRA_KV", "id": "REPLACE_ME_KV_STAGING" }]
+    },
+    "production": {
+      "name": "afra-edge",
+      "vars": { "AFRA_ENV": "production", "AFRA_EDGE_PATH": "/afra" },
+      "d1_databases": [
+        {
+          "binding": "AFRA_DB",
+          "database_name": "afra-db-production",
+          "database_id": "REPLACE_ME_D1_PRODUCTION"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "AFRA_KV", "id": "REPLACE_ME_KV_PRODUCTION" }]
+    }
+  }
+}

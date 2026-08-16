@@ -1,0 +1,130 @@
+{
+  // ============================================================
+  // Afra Panel — Control Plane Worker
+  // شناسه‌های واقعی نباید در مخزن ذخیره شوند؛ مقادیر REPLACE_ME را
+  // بعد از ساخت منابع با `wrangler d1/kv/r2 create` جایگزین کنید.
+  // ============================================================
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "afra-control-plane",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+
+  // رابط کاربری React از همین Worker سرو می‌شود (Workers Static Assets)
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+
+  "vars": {
+    "AFRA_ENV": "development",
+    "AFRA_VERSION": "1.0.0"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "AFRA_DB",
+      "database_name": "afra-db",
+      "database_id": "REPLACE_ME_D1_DEV",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "AFRA_KV",
+      "id": "REPLACE_ME_KV_DEV"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "AFRA_BACKUPS",
+      "bucket_name": "afra-backups"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "RATE_LIMITER", "class_name": "RateLimiterDO" },
+      { "name": "HEALTH_COORDINATOR", "class_name": "HealthCoordinatorDO" }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RateLimiterDO", "HealthCoordinatorDO"]
+    }
+  ],
+
+  "triggers": {
+    // بررسی سلامت Nodeها هر ۵ دقیقه، تجمیع ترافیک ساعتی، نگهداشت روزانه
+    "crons": ["*/5 * * * *", "0 * * * *", "30 3 * * *"]
+  },
+
+  // Queues اختیاری است (نیازمند طرح پرداختی). اگر فعال شود کد به‌صورت
+  // خودکار از آن استفاده می‌کند، در غیر این صورت پردازش هم‌زمان انجام می‌شود.
+  // "queues": {
+  //   "producers": [{ "binding": "AFRA_QUEUE", "queue": "afra-jobs" }],
+  //   "consumers": [{ "queue": "afra-jobs", "max_batch_size": 25, "max_retries": 3 }]
+  // },
+
+  "env": {
+    "staging": {
+      "name": "afra-control-plane-staging",
+      "vars": { "AFRA_ENV": "staging", "AFRA_VERSION": "1.0.0" },
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application"
+      },
+      "d1_databases": [
+        {
+          "binding": "AFRA_DB",
+          "database_name": "afra-db-staging",
+          "database_id": "REPLACE_ME_D1_STAGING",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "AFRA_KV", "id": "REPLACE_ME_KV_STAGING" }],
+      "r2_buckets": [{ "binding": "AFRA_BACKUPS", "bucket_name": "afra-backups-staging" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimiterDO" },
+          { "name": "HEALTH_COORDINATOR", "class_name": "HealthCoordinatorDO" }
+        ]
+      },
+      "triggers": { "crons": ["*/10 * * * *", "0 * * * *", "30 3 * * *"] }
+    },
+    "production": {
+      "name": "afra-control-plane",
+      "vars": { "AFRA_ENV": "production", "AFRA_VERSION": "1.0.0" },
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application"
+      },
+      "d1_databases": [
+        {
+          "binding": "AFRA_DB",
+          "database_name": "afra-db-production",
+          "database_id": "REPLACE_ME_D1_PRODUCTION",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [{ "binding": "AFRA_KV", "id": "REPLACE_ME_KV_PRODUCTION" }],
+      "r2_buckets": [{ "binding": "AFRA_BACKUPS", "bucket_name": "afra-backups-production" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimiterDO" },
+          { "name": "HEALTH_COORDINATOR", "class_name": "HealthCoordinatorDO" }
+        ]
+      },
+      "triggers": { "crons": ["*/5 * * * *", "0 * * * *", "30 3 * * *"] }
+    }
+  }
+}

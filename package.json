@@ -1,0 +1,35 @@
+{
+  "name": "afra-panel",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Afra Panel \u2014 Cloudflare-first self-hosted proxy management platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @afra/shared",
+    "build:web": "npm run build -w @afra/web",
+    "build": "npm run build:shared && npm run build:web",
+    "typecheck": "npm run build:shared && npm run typecheck -w @afra/control-plane && npm run typecheck -w @afra/edge && npm run typecheck -w @afra/web",
+    "test": "npm run build:shared && npm run test -w @afra/control-plane",
+    "dev:api": "npm run dev -w @afra/control-plane",
+    "dev:web": "npm run dev -w @afra/web",
+    "dev:edge": "npm run dev -w @afra/edge",
+    "db:migrate:local": "npm run db:migrate:local -w @afra/control-plane",
+    "db:migrate:remote": "npm run db:migrate:remote -w @afra/control-plane",
+    "deploy": "npm run build && npm run deploy -w @afra/control-plane && npm run deploy -w @afra/edge",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}
