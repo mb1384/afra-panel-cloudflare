@@ -47,40 +47,74 @@ setupRouter.post('/', async (c) => {
   const settingsService = c.get('settings');
   const recoveryCode = generateRecoveryCode();
   const adminId = newId('adm');
+  const passwordHash = await hashPassword(input.password);
+  const recoveryCodeHash = await sha256Hex(recoveryCode);
+  const createdAt = nowIso();
 
-  await c.env.AFRA_DB.prepare(
-    `INSERT INTO admins (id, username, email, password_hash, role_id, enabled, recovery_code_hash,
-                         password_changed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'super_admin', 1, ?, ?, ?, ?)`,
-  )
-    .bind(
-      adminId,
-      input.username,
-      input.email || null,
-      await hashPassword(input.password),
-      await sha256Hex(recoveryCode),
-      nowIso(),
-      nowIso(),
-      nowIso(),
-    )
-    .run();
+  try {
+    await c.env.AFRA_DB.batch([
+      c.env.AFRA_DB.prepare(
+        `INSERT INTO admins (id, username, email, password_hash, role_id, enabled, recovery_code_hash,
+                             password_changed_at, created_at, updated_at)
+         SELECT ?, ?, ?, ?, 'super_admin', 1, ?, ?, ?, ?
+         WHERE NOT EXISTS (SELECT 1 FROM admins)`,
+      ).bind(
+        adminId,
+        input.username,
+        input.email || null,
+        passwordHash,
+        recoveryCodeHash,
+        createdAt,
+        createdAt,
+        createdAt,
+      ),
+      ...Object.entries({
+        panelName: input.panelName,
+        timezone: input.timezone,
+        edgeUrl: input.edgeUrl || '',
+        setupCompleted: true,
+      }).map(([key, value]) =>
+        c.env.AFRA_DB.prepare(
+          `INSERT INTO system_settings (key, value, is_secret, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+        ).bind(key, JSON.stringify(value), 0, createdAt),
+      ),
+    ]);
+  } catch (error) {
+    // A concurrent setup request may have won the one-admin race.
+    const currentCount = await c.env.AFRA_DB.prepare('SELECT COUNT(*) AS total FROM admins').first<{
+      total: number;
+    }>();
+    if ((currentCount?.total ?? 0) > 0) {
+      throw new AfraError('SETUP_ALREADY_DONE', 409);
+    }
+    throw error;
+  }
 
-  await settingsService.setMany({
-    panelName: input.panelName,
-    timezone: input.timezone,
-    edgeUrl: input.edgeUrl || '',
-    setupCompleted: true,
-  });
+  // Keep the in-request settings cache consistent with the D1 write.
+  await settingsService.invalidate();
 
-  const session = await createSession(
-    c.env,
-    { id: adminId, username: input.username, roleName: 'super_admin' },
-    {
-      ip: c.get('clientIp'),
-      userAgent: c.req.header('user-agent') ?? null,
-      ttlMinutes: 720,
-    },
-  );
+  let session;
+  try {
+    session = await createSession(
+      c.env,
+      { id: adminId, username: input.username, roleName: 'super_admin' },
+      {
+        ip: c.get('clientIp'),
+        userAgent: c.req.header('user-agent') ?? null,
+        ttlMinutes: 720,
+      },
+    );
+  } catch (error) {
+    // Setup data is already committed. Do not report a misleading generic failure;
+    // the caller can retry authentication, while the created admin remains intact.
+    throw new AfraError(
+      'INTERNAL_ERROR',
+      500,
+      { phase: 'session_creation', reason: String(error) },
+      'مدیر اولیه ساخته شد، اما ایجاد نشست ورود انجام نشد. اکنون از صفحه ورود وارد شوید.',
+    );
+  }
 
   await writeAudit(c.env, {
     adminId,
