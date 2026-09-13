@@ -68,9 +68,12 @@ export async function createSession(
     csrfSecret,
     expiresAt,
   };
+
+  // KV is only a session cache. A temporary KV failure must not make a
+  // successfully persisted D1 session look like a failed login/setup.
   await env.AFRA_KV.put(kvKey(tokenHash), JSON.stringify(cacheValue), {
     expirationTtl: Math.max(60, options.ttlMinutes * 60),
-  });
+  }).catch(() => undefined);
 
   return { token, csrfToken: csrfSecret, sessionId, expiresAt };
 }
