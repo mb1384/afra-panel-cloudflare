@@ -52,7 +52,7 @@ setupRouter.post('/', async (c) => {
   const createdAt = nowIso();
 
   try {
-    await c.env.AFRA_DB.batch([
+    const results = await c.env.AFRA_DB.batch([
       c.env.AFRA_DB.prepare(
         `INSERT INTO admins (id, username, email, password_hash, role_id, enabled, recovery_code_hash,
                              password_changed_at, created_at, updated_at)
@@ -80,8 +80,15 @@ setupRouter.post('/', async (c) => {
         ).bind(key, JSON.stringify(value), 0, createdAt),
       ),
     ]);
+
+    // D1 batch is atomic, but the conditional INSERT can legitimately affect
+    // zero rows when another request completed setup first.
+    if ((results[0]?.meta?.changes ?? 0) !== 1) {
+      throw new AfraError('SETUP_ALREADY_DONE', 409);
+    }
   } catch (error) {
-    // A concurrent setup request may have won the one-admin race.
+    if (error instanceof AfraError) throw error;
+
     const currentCount = await c.env.AFRA_DB.prepare('SELECT COUNT(*) AS total FROM admins').first<{
       total: number;
     }>();
@@ -116,6 +123,7 @@ setupRouter.post('/', async (c) => {
     );
   }
 
+  // Audit logging must not invalidate an otherwise successful first setup.
   await writeAudit(c.env, {
     adminId,
     adminUsername: input.username,
@@ -123,7 +131,7 @@ setupRouter.post('/', async (c) => {
     resource: 'admin',
     resourceId: adminId,
     ip: c.get('clientIp'),
-  });
+  }).catch(() => undefined);
 
   const response = jsonOk({
     completed: true,
